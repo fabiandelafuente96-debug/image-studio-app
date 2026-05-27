@@ -1451,7 +1451,7 @@ export default function App() {
           <div className="flex-1 bg-slate-950/40 border border-slate-800/80 rounded-3xl relative overflow-hidden flex items-center justify-center min-h-[450px] lg:min-h-[550px] p-6">
             
             {/* Grid background representing empty canvas */}
-            <div className="absolute inset-0 bg-[linear-gradient(45deg,#0f172a_25%,transparent_25%),linear-gradient(-45deg,#0f172a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#0f172a_75%),linear-gradient(-45deg,transparent_75%,#0f172a_75%)] bg-[size:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0] opacity-40"></div>
+            <div className="absolute inset-0 bg-[linear-gradient(45deg,#0f172a_25%,transparent_25%),linear-gradient(-45deg,#0f172a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#0f172a_75%),linear-gradient(-45deg,transparent_75%,#0f172a_75%)] bg-[size:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0] opacity-40 pointer-events-none"></div>
 
             {/* MOCKUP WARP INTERFACE */}
             {studioMode === 'mockup' && mockupImage && (
