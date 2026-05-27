@@ -96,7 +96,10 @@ function isPointInQuad(p, quad) {
 }
 
 export default function App() {
-  const apiKey = ""; // Sandbox API Key variable configuration
+  const [userApiKey, setUserApiKey] = useState(() => {
+    return localStorage.getItem('gemini_api_key') || "";
+  });
+  const apiKey = userApiKey || import.meta.env.VITE_GEMINI_API_KEY || "";
 
   // Studio Mode State: 'background' or 'mockup'
   const [studioMode, setStudioMode] = useState('mockup');
@@ -119,6 +122,12 @@ export default function App() {
   // Eraser Settings
   const [brushSize, setBrushSize] = useState(25);
   const [isDrawing, setIsDrawing] = useState(false);
+  const [brushMode, setBrushMode] = useState('erase'); // 'erase' or 'restore'
+
+  // AI Background Removal Settings
+  const [aiMode, setAiMode] = useState('mask'); // 'mask', 'chromakey', 'direct'
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiMaskFeather, setAiMaskFeather] = useState(2); // default 2px blur
 
   // Before/After Slider position (0 - 100)
   const [sliderPosition, setSliderPosition] = useState(50);
@@ -871,7 +880,8 @@ export default function App() {
 
   const draw = (e) => {
     const canvas = resultCanvasRef.current;
-    if (!canvas) return;
+    const origCanvas = originalCanvasRef.current;
+    if (!canvas || !origCanvas) return;
 
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
@@ -881,10 +891,21 @@ export default function App() {
     const y = (e.clientY - rect.top) * scaleY;
 
     const ctx = canvas.getContext('2d');
-    ctx.beginPath();
-    ctx.globalCompositeOperation = 'destination-out';
-    ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
-    ctx.fill();
+    
+    if (brushMode === 'restore') {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.drawImage(origCanvas, 0, 0);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
   };
 
   const handleSliderMove = (clientX) => {
@@ -973,8 +994,18 @@ export default function App() {
       const base64Data = originalImage.split(',')[1];
       const mimeType = originalImage.split(';')[0].split(':')[1] || 'image/png';
 
-      const promptText = "Isolate the main subject. Erase the background completely, rendering it as transparent. Keep output clean.";
-      
+      // Set prompt according to the selected mode
+      let promptText = "";
+      const subjectFocus = aiPrompt.trim() ? `focus specifically on the subject described as: "${aiPrompt.trim()}"` : "focus on the main subject";
+
+      if (aiMode === 'mask') {
+        promptText = `Generate a high-contrast binary segmentation mask of the image. The target is to isolate the subject, so please ${subjectFocus}. The isolated subject must be filled with pure, solid white (#FFFFFF). The entire background, including any shadows or secondary objects, must be filled with pure, solid black (#000000). There must be no gray tones, no shading, no borders, no text, and no other colors. Output ONLY black and white pixels. Keep details like hair and edges clean.`;
+      } else if (aiMode === 'chromakey') {
+        promptText = `Isolate the subject. For this task, ${subjectFocus}. Keep the subject's colors, textures, details, and lighting exactly the same. Replace the entire background completely with a solid bright green color (RGB 0, 255, 0, hex #00FF00). There must be no shadows, lighting variations, or gradients in the green background—only the solid bright green color.`;
+      } else {
+        promptText = `Isolate the subject. For this task, ${subjectFocus}. Erase the background completely, rendering it as transparent. Keep output clean.`;
+      }
+
       const payload = {
         contents: [{
           parts: [
@@ -993,26 +1024,137 @@ export default function App() {
       });
 
       const returnedPart = data.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
-      if (!returnedPart) throw new Error("Could not fetch isolated subject layers.");
+      if (!returnedPart) throw new Error("Could not fetch isolated subject layers from the API model response.");
 
       const aiImg = new Image();
       aiImg.onload = () => {
         const canvas = resultCanvasRef.current;
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.globalCompositeOperation = 'source-over';
-        ctx.drawImage(aiImg, 0, 0, canvas.width, canvas.height);
+        const origCanvas = originalCanvasRef.current;
+        if (!canvas || !origCanvas) {
+          setIsProcessing(false);
+          return;
+        }
 
-        pushToHistory(ctx.getImageData(0, 0, canvas.width, canvas.height));
+        const ctx = canvas.getContext('2d');
+        const ctxOrig = origCanvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+
+        if (aiMode === 'mask') {
+          // Grayscale mask mode
+          // 1. Create a temporary canvas to draw the returned mask image
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = w;
+          tempCanvas.height = h;
+          const tempCtx = tempCanvas.getContext('2d');
+
+          // Apply blur/feather if configured
+          if (aiMaskFeather > 0) {
+            tempCtx.filter = `blur(${aiMaskFeather}px)`;
+          }
+
+          tempCtx.drawImage(aiImg, 0, 0, w, h);
+          tempCtx.filter = 'none';
+
+          // 2. Read mask pixels and original canvas pixels
+          const maskPixels = tempCtx.getImageData(0, 0, w, h).data;
+          const origImgData = ctxOrig.getImageData(0, 0, w, h);
+          const origPixels = origImgData.data;
+
+          const outputImgData = ctx.createImageData(w, h);
+          const outPixels = outputImgData.data;
+
+          // 3. Composite original pixels with mask alpha values
+          for (let i = 0; i < origPixels.length; i += 4) {
+            const r = origPixels[i];
+            const g = origPixels[i+1];
+            const b = origPixels[i+2];
+            const a = origPixels[i+3];
+
+            // Calculate brightness of the mask pixel
+            const mr = maskPixels[i];
+            const mg = maskPixels[i+1];
+            const mb = maskPixels[i+2];
+            const maskBrightness = (mr + mg + mb) / 3;
+
+            outPixels[i] = r;
+            outPixels[i+1] = g;
+            outPixels[i+2] = b;
+            // Scale original alpha by mask brightness (white = opaque, black = transparent)
+            outPixels[i+3] = Math.round(a * (maskBrightness / 255));
+          }
+
+          ctx.clearRect(0, 0, w, h);
+          ctx.putImageData(outputImgData, 0, 0);
+          pushToHistory(outputImgData);
+          showToast("AI Separation locked via Grayscale Mask!", "success");
+
+        } else if (aiMode === 'chromakey') {
+          // Chroma green screen mode
+          // 1. Draw the AI green-screened image onto a temp canvas
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = w;
+          tempCanvas.height = h;
+          const tempCtx = tempCanvas.getContext('2d');
+          tempCtx.drawImage(aiImg, 0, 0, w, h);
+
+          const aiPixels = tempCtx.getImageData(0, 0, w, h).data;
+          const outputImgData = ctx.createImageData(w, h);
+          const outPixels = outputImgData.data;
+
+          // 2. Key out the green pixels. Pure green is RGB(0, 255, 0)
+          const kr = 0, kg = 255, kb = 0;
+          const toleranceThreshold = 60; 
+          const featherRange = 8;
+
+          for (let i = 0; i < aiPixels.length; i += 4) {
+            const r = aiPixels[i];
+            const g = aiPixels[i+1];
+            const b = aiPixels[i+2];
+            const a = aiPixels[i+3];
+
+            const dist = Math.sqrt((r - kr) * (r - kr) + (g - kg) * (g - kg) + (b - kb) * (b - kb));
+
+            let alpha = a;
+            if (dist < toleranceThreshold) {
+              alpha = 0;
+            } else if (dist < toleranceThreshold + featherRange) {
+              alpha = Math.round(a * ((dist - toleranceThreshold) / featherRange));
+            }
+
+            outPixels[i] = r;
+            outPixels[i+1] = g;
+            outPixels[i+2] = b;
+            outPixels[i+3] = alpha;
+          }
+
+          ctx.clearRect(0, 0, w, h);
+          ctx.putImageData(outputImgData, 0, 0);
+          pushToHistory(outputImgData);
+          showToast("AI Separation locked via Chroma Key!", "success");
+
+        } else {
+          // Direct AI Cutout mode (Legacy)
+          ctx.clearRect(0, 0, w, h);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.drawImage(aiImg, 0, 0, w, h);
+
+          const currentData = ctx.getImageData(0, 0, w, h);
+          pushToHistory(currentData);
+          showToast("AI Direct Cutout locked!", "success");
+        }
+
         setIsProcessing(false);
-        showToast("AI Separation locked!", "success");
+      };
+      aiImg.onerror = () => {
+        throw new Error("Failed to load image returned by Gemini AI.");
       };
       aiImg.src = `data:${returnedPart.inlineData.mimeType};base64,${returnedPart.inlineData.data}`;
 
     } catch (err) {
+      console.error(err);
       setIsProcessing(false);
-      showToast("Gemini auto isolation completed with fallbacks.", "error");
-      setActiveTab('chroma');
+      showToast(`AI Isolation failed: ${err.message || err}`, "error");
     }
   };
 
@@ -1362,22 +1504,135 @@ export default function App() {
                     </button>
                   </div>
                 )}
-
-                {activeTab === 'ai' && (
+                 {activeTab === 'ai' && (
                   <div className="space-y-4">
                     <div>
                       <h3 className="text-sm font-bold text-white">Gemini AI Engine</h3>
                       <p className="text-xs text-slate-400 mt-1">Automatic subject isolation via advanced visual recognition models.</p>
                     </div>
 
+                    {/* AI Isolation Mode Selection */}
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-bold text-slate-500 block">ISOLATION METHOD:</label>
+                      <div className="grid grid-cols-1 gap-2">
+                        <button
+                          onClick={() => setAiMode('mask')}
+                          className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                            aiMode === 'mask'
+                              ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
+                              : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="font-bold text-white flex items-center justify-between">
+                            <span>Grayscale Mask</span>
+                            {aiMode === 'mask' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">Recommended. Preserves 100% of original high-resolution details.</p>
+                        </button>
+                        <button
+                          onClick={() => setAiMode('chromakey')}
+                          className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                            aiMode === 'chromakey'
+                              ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
+                              : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="font-bold text-white flex items-center justify-between">
+                            <span>Chroma Green Screen</span>
+                            {aiMode === 'chromakey' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">Positions the subject on pure green, then auto-keys it out.</p>
+                        </button>
+                        <button
+                          onClick={() => setAiMode('direct')}
+                          className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                            aiMode === 'direct'
+                              ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
+                              : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
+                          }`}
+                        >
+                          <div className="font-bold text-white flex items-center justify-between">
+                            <span>Direct AI Cutout</span>
+                            {aiMode === 'direct' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">Legacy. Generates cutout directly. Best for simple subjects.</p>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Subject Focus Prompt Input */}
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-slate-500 block">SUBJECT FOCUS (OPTIONAL):</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. the dog, the red mug, the speaker"
+                        value={aiPrompt}
+                        onChange={(e) => setAiPrompt(e.target.value)}
+                        className="w-full bg-[#080808] border border-[#1C1C1E] focus:border-[#C9FA01] rounded-xl px-3 py-2 text-xs text-slate-200 outline-none transition-all placeholder:text-slate-600"
+                      />
+                      <p className="text-[9px] text-slate-500">Helps AI target specific items in complex/cluttered scenes.</p>
+                    </div>
+
+                    {/* Mask Feather Softness Slider (Only for Mask Mode) */}
+                    {aiMode === 'mask' && (
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-xs text-slate-400">
+                          <span>Edge Softness / Feather</span>
+                          <span className="font-fira text-[#C9FA01]">{aiMaskFeather}px</span>
+                        </div>
+                        <input 
+                          type="range" 
+                          min="0" 
+                          max="20" 
+                          value={aiMaskFeather} 
+                          onChange={(e) => setAiMaskFeather(parseInt(e.target.value))}
+                          className="w-full accent-[#C9FA01] h-1 bg-[#080808] rounded-lg appearance-none cursor-pointer"
+                        />
+                        <p className="text-[9px] text-slate-500">Smoothes out edges to blend cutouts naturally.</p>
+                      </div>
+                    )}
+
+                    {!apiKey && (
+                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-[11px] leading-relaxed">
+                        ⚠️ <strong>Gemini API Key missing.</strong> Please expand the <em>Gemini API Configuration</em> below to enter your API key to run this feature.
+                      </div>
+                    )}
+
                     <button 
                       onClick={handleAiRemoveBackground}
-                      disabled={isProcessing}
+                      disabled={isProcessing || !apiKey}
                       className="w-full py-2.5 px-4 bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808] rounded-xl text-xs font-bold shadow-lg shadow-[#C9FA01]/10 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
                     >
                       <RefreshCw className={`animate-spin ${isProcessing ? '' : 'hidden'}`} size={14} />
                       {isProcessing ? 'Isolating elements...' : 'Execute Gemini Separation'}
                     </button>
+
+                    {/* Collapsible API Key Management panel */}
+                    <div className="border-t border-[#1C1C1E]/50 pt-3">
+                      <details className="group">
+                        <summary className="text-[11px] font-bold text-slate-500 cursor-pointer flex items-center justify-between select-none list-none">
+                          <span>GEMINI API CONFIGURATION</span>
+                          <span className="text-[9px] text-[#C9FA01] group-open:hidden">Show Configuration</span>
+                          <span className="text-[9px] text-[#C9FA01] hidden group-open:inline">Hide Configuration</span>
+                        </summary>
+                        <div className="mt-2.5 space-y-2">
+                          <input 
+                            type="password" 
+                            placeholder="Paste Gemini API Key..."
+                            value={userApiKey}
+                            onChange={(e) => {
+                              const key = e.target.value;
+                              setUserApiKey(key);
+                              localStorage.setItem('gemini_api_key', key);
+                            }}
+                            className="w-full bg-[#080808] border border-[#1C1C1E] focus:border-[#C9FA01] rounded-xl px-3 py-2 text-xs text-slate-200 outline-none transition-all"
+                          />
+                          <p className="text-[9px] text-slate-500 leading-normal">
+                            API Key is saved securely in your browser's local storage. Don't have a key? Get a free key at <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-[#C9FA01] underline hover:text-[#d4ff1a]">Google AI Studio</a>.
+                          </p>
+                        </div>
+                      </details>
+                    </div>
                   </div>
                 )}
 
@@ -1386,6 +1641,30 @@ export default function App() {
                     <div>
                       <h3 className="text-sm font-bold text-white">Manual Touch-Up Brush</h3>
                       <p className="text-xs text-slate-400 mt-1">Perfect fine details manually with pixel precise brushes.</p>
+                    </div>
+
+                    {/* Erase vs Restore Brush Mode Toggle */}
+                    <div className="bg-[#080808] p-1 rounded-xl border border-[#1C1C1E] flex gap-1">
+                      <button
+                        onClick={() => setBrushMode('erase')}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                          brushMode === 'erase'
+                            ? 'bg-[#C9FA01] text-[#080808] shadow-md'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Erase Pixels
+                      </button>
+                      <button
+                        onClick={() => setBrushMode('restore')}
+                        className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                          brushMode === 'restore'
+                            ? 'bg-[#C9FA01] text-[#080808] shadow-md'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Restore Pixels
+                      </button>
                     </div>
 
                     <div className="p-4 bg-[#080808] rounded-xl border border-[#141416] space-y-3">
