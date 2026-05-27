@@ -529,7 +529,7 @@ export default function App() {
       ctx.drawImage(tempCanvas, 0, 0, 120, 120);
 
       // Crosshairs
-      ctx.strokeStyle = '#22d3ee';
+      ctx.strokeStyle = '#C9FA01';
       ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.moveTo(60, 0); ctx.lineTo(60, 120); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, 60); ctx.lineTo(120, 60); ctx.stroke();
@@ -1026,7 +1026,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="min-h-screen bg-[#080808] text-slate-100 flex flex-col font-sans selection:bg-[#C9FA01]/30 selection:text-[#C9FA01]">
       
       {/* Inject custom fonts and force apply them to document nodes */}
       <style>{`
@@ -1044,34 +1044,30 @@ export default function App() {
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
 
       {/* Header Bar */}
-      <header className="border-b border-slate-900 bg-slate-950 px-6 py-4 sticky top-0 z-40 shadow-xl shadow-black/20">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+      <header className="border-b border-[#0E0E10] bg-[#080808] py-4 sticky top-0 z-40 shadow-xl shadow-black/20">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-tr from-cyan-500 to-indigo-600 p-2.5 rounded-xl shadow-lg shadow-cyan-500/20">
-              <Sparkles className="text-white" size={24} />
-            </div>
             <div>
               <h1 className="text-lg font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-400 bg-clip-text text-transparent flex items-center gap-2">
-                Gemini Creative Suite <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-fira tracking-normal">V2.2</span>
+                Image Studio App
               </h1>
-              <p className="text-xs text-slate-400">Professional Studio Backgrounds & Device Screen Warper</p>
             </div>
           </div>
 
           {/* Mode Switcher */}
-          <div className="flex items-center gap-1.5 bg-slate-900 p-1.5 rounded-xl border border-slate-800">
+          <div className="flex items-center gap-1.5 bg-[#0E0E10] p-1.5 rounded-xl border border-[#1C1C1E]">
             <button
               onClick={() => handleModeChange('mockup')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${studioMode === 'mockup' ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${studioMode === 'mockup' ? 'bg-[#C9FA01] text-[#080808] shadow-md' : 'text-slate-400 hover:text-white'}`}
             >
-              <Laptop size={14} /> Mockup Screen Warper
+              Mockup Generator
             </button>
             <button
               onClick={() => handleModeChange('background')}
-              className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${studioMode === 'background' ? 'bg-cyan-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${studioMode === 'background' ? 'bg-[#C9FA01] text-[#080808] shadow-md' : 'text-slate-400 hover:text-white'}`}
             >
-              <Paintbrush size={14} /> Background Studio
+              Background Remover
             </button>
           </div>
 
@@ -1082,14 +1078,14 @@ export default function App() {
                 <button 
                   onClick={handleUndo} 
                   disabled={historyStep <= 0}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 disabled:opacity-30 transition-colors"
+                  className="p-1.5 hover:bg-[#1C1C1E] rounded-lg text-slate-400 disabled:opacity-30 transition-colors"
                 >
                   <Undo size={16} />
                 </button>
                 <button 
                   onClick={handleRedo} 
                   disabled={historyStep >= history.length - 1}
-                  className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 disabled:opacity-30 transition-colors"
+                  className="p-1.5 hover:bg-[#1C1C1E] rounded-lg text-slate-400 disabled:opacity-30 transition-colors"
                 >
                   <Redo size={16} />
                 </button>
@@ -1097,7 +1093,7 @@ export default function App() {
             )}
             <button 
               onClick={resetAll}
-              className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-bold rounded-lg text-slate-300 transition-all flex items-center gap-1.5"
+              className="px-3 py-1.5 bg-[#C9FA01] hover:bg-[#d4ff1a] text-xs font-bold rounded-lg text-[#080808] transition-all flex items-center gap-1.5"
             >
               <RotateCcw size={13} /> Reset All
             </button>
@@ -1117,7 +1113,7 @@ export default function App() {
             <div className="space-y-5">
               
               {/* Device and Screenshot loaders without icon headers */}
-              <div className="bg-slate-900/80 rounded-2xl border border-slate-800 p-5 space-y-4">
+              <div className="bg-[#0E0E10]/80 rounded-2xl border border-[#1C1C1E] p-5 space-y-4">
                 <h3 className="text-sm font-bold text-white">
                   1. Setup Screen & Device
                 </h3>
@@ -1126,9 +1122,9 @@ export default function App() {
                 <div className="flex flex-col gap-3">
                   <div className="space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Step 1: Device Image</span>
-                    <label className="flex items-center justify-center gap-2 p-3.5 border border-dashed border-slate-800 hover:border-cyan-500 hover:bg-slate-950/40 rounded-xl cursor-pointer transition-all">
+                    <label className="flex items-center justify-center gap-2 p-3.5 border border-dashed border-[#1C1C1E] hover:border-[#C9FA01] hover:bg-[#080808]/40 rounded-xl cursor-pointer transition-all">
                       <input type="file" onChange={handleDeviceUpload} accept="image/*" className="hidden" />
-                      <Laptop size={18} className={mockupImage ? "text-cyan-400" : "text-slate-500"} />
+                      <Laptop size={18} className={mockupImage ? "text-[#C9FA01]" : "text-slate-500"} />
                       <span className="text-xs font-bold text-slate-300">
                         {mockupImage ? "Replace Device Photo" : "Upload Device Photo"}
                       </span>
@@ -1142,8 +1138,8 @@ export default function App() {
                     <label 
                       className={`flex items-center justify-center gap-2 p-3.5 border border-dashed rounded-xl transition-all ${
                         mockupImage 
-                          ? "border-slate-800 hover:border-cyan-500 hover:bg-slate-950/40 cursor-pointer text-slate-300" 
-                          : "border-slate-900/40 bg-slate-950/10 text-slate-600 cursor-not-allowed opacity-55"
+                          ? "border-[#1C1C1E] hover:border-[#C9FA01] hover:bg-[#080808]/40 cursor-pointer text-slate-300" 
+                          : "border-[#0E0E10]/40 bg-[#080808]/10 text-slate-600 cursor-not-allowed opacity-55"
                       }`}
                     >
                       <input 
@@ -1153,7 +1149,7 @@ export default function App() {
                         className="hidden" 
                         disabled={!mockupImage} 
                       />
-                      <Smartphone size={18} className={designImage ? "text-cyan-400" : "text-slate-500"} />
+                      <Smartphone size={18} className={designImage ? "text-[#C9FA01]" : "text-slate-500"} />
                       <span className="text-xs font-bold">
                         {designImage ? "Replace Screen Screenshot" : "Upload Screen Design"}
                       </span>
@@ -1169,7 +1165,7 @@ export default function App() {
 
               {/* Warper controls panel without icon headers */}
               {mockupImage && (
-                <div className="bg-slate-900/80 rounded-2xl border border-slate-800 p-5 space-y-4 animate-fadeIn">
+                <div className="bg-[#0E0E10]/80 rounded-2xl border border-[#1C1C1E] p-5 space-y-4 animate-fadeIn">
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-white">
                       2. Warp & Refine Design
@@ -1178,7 +1174,7 @@ export default function App() {
                       onClick={handleAiAutoPin}
                       disabled={isProcessing}
                       title="AI Re-Detect Screen"
-                      className="p-1.5 bg-slate-800 hover:bg-slate-750 text-cyan-400 hover:text-cyan-300 border border-slate-700 hover:border-cyan-500 rounded-lg flex items-center justify-center transition-all shadow-md shadow-cyan-500/10 disabled:opacity-40"
+                      className="p-1.5 bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808] rounded-lg flex items-center justify-center transition-all disabled:opacity-40"
                     >
                       <RefreshCw className={isProcessing ? "animate-spin" : ""} size={14} />
                     </button>
@@ -1189,11 +1185,11 @@ export default function App() {
                   </p>
 
                   {/* Realism Blend modifiers */}
-                  <div className="space-y-3.5 pt-2 border-t border-slate-800/60">
+                  <div className="space-y-3.5 pt-2 border-t border-[#1C1C1E]/60">
                     <div>
                       <div className="flex justify-between text-[11px] text-slate-400 mb-1">
                         <span>Screen Layer Opacity</span>
-                        <span className="font-fira text-cyan-400">{mockupOpacity}%</span>
+                        <span className="font-fira text-[#C9FA01]">{mockupOpacity}%</span>
                       </div>
                       <input 
                         type="range" 
@@ -1201,7 +1197,7 @@ export default function App() {
                         max="100" 
                         value={mockupOpacity} 
                         onChange={(e) => setMockupOpacity(parseInt(e.target.value))}
-                        className="w-full accent-cyan-400 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer"
+                        className="w-full accent-[#C9FA01] h-1 bg-[#080808] rounded-lg appearance-none cursor-pointer"
                       />
                     </div>
 
@@ -1210,7 +1206,7 @@ export default function App() {
                       <select 
                         value={mockupBlendMode} 
                         onChange={(e) => setMockupBlendMode(e.target.value)}
-                        className="w-full p-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-semibold text-slate-200 outline-none animate-none"
+                        className="w-full p-2.5 bg-[#080808] border border-[#1C1C1E] rounded-lg text-xs font-semibold text-slate-200 outline-none animate-none"
                       >
                         <option value="source-over">Normal (Direct Screen Placement)</option>
                         <option value="multiply">Multiply (Perfect for Dark Screens & Shadows)</option>
@@ -1221,10 +1217,10 @@ export default function App() {
                   </div>
 
                   {/* Resolution Multiplier Selector with Fira Code font */}
-                  <div className="space-y-2 pt-3.5 border-t border-slate-800/60">
+                  <div className="space-y-2 pt-3.5 border-t border-[#1C1C1E]/60">
                     <div className="flex justify-between items-center text-[11px] text-slate-400">
                       <span className="font-bold uppercase tracking-wider text-slate-500">Export Resolution</span>
-                      <span className="font-fira text-cyan-400 font-bold bg-slate-950/60 py-0.5 px-2 rounded-md border border-slate-800">
+                      <span className="font-fira text-[#C9FA01] font-bold bg-[#080808]/60 py-0.5 px-2 rounded-md border border-[#1C1C1E]">
                         {mockupNaturalSize.width ? `${Math.round(mockupNaturalSize.width * exportScale)} × ${Math.round(mockupNaturalSize.height * exportScale)} px` : 'Idle'}
                       </span>
                     </div>
@@ -1234,10 +1230,10 @@ export default function App() {
                           key={scale}
                           type="button"
                           onClick={() => setExportScale(scale)}
-                          className={`py-1.5 rounded-lg text-xs font-extrabold transition-all border font-fira ${
+                          className={`py-1.5 rounded-lg text-xs font-extrabold transition-all font-fira ${
                             exportScale === scale
-                              ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-md shadow-cyan-500/10'
-                              : 'bg-slate-950 border-slate-850 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                              ? 'bg-[#C9FA01] text-[#080808] shadow-md shadow-[#C9FA01]/10'
+                              : 'bg-[#C9FA01]/10 text-[#C9FA01] hover:bg-[#C9FA01] hover:text-[#080808]'
                           }`}
                         >
                           {scale}x
@@ -1257,10 +1253,10 @@ export default function App() {
 
               {/* Exporters */}
               {mockupImage && (
-                <div className="bg-slate-900/80 rounded-2xl border border-slate-800 p-5 space-y-3">
+                <div className="bg-[#0E0E10]/80 rounded-2xl border border-[#1C1C1E] p-5 space-y-3">
                   <button 
                     onClick={downloadResult}
-                    className="w-full py-3 px-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl text-xs font-bold shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-2 transition-all"
+                    className="w-full py-3 px-4 bg-[#C9FA01] hover:bg-[#C9FA01] text-[#080808] rounded-xl text-xs font-bold shadow-lg shadow-[#C9FA01]/10 flex items-center justify-center gap-2 transition-all"
                   >
                     <Download size={14} /> Export High-Res Mockup
                   </button>
@@ -1276,32 +1272,32 @@ export default function App() {
             <div className="space-y-5">
               
               {/* Tab Selector */}
-              <div className="bg-slate-900/80 p-1.5 rounded-xl border border-slate-800 flex gap-1">
+              <div className="bg-[#0E0E10]/80 p-1.5 rounded-xl border border-[#1C1C1E] flex gap-1">
                 <button 
                   onClick={() => setActiveTab('chroma')}
-                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'chroma' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'chroma' ? 'bg-[#C9FA01] text-[#080808]' : 'text-slate-400 hover:text-white'}`}
                 >
-                  <Pipette size={13} /> Chroma Key
+                  Chroma Key
                 </button>
                 <button 
                   onClick={() => {
                     setActiveTab('ai');
                     handleAiRemoveBackground();
                   }}
-                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'ai' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'ai' ? 'bg-[#C9FA01] text-[#080808]' : 'text-slate-400 hover:text-white'}`}
                 >
-                  <Sparkles size={13} /> Gemini AI
+                  Gemini AI
                 </button>
                 <button 
                   onClick={() => setActiveTab('erase')}
-                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${activeTab === 'erase' ? 'bg-cyan-500 text-slate-950' : 'text-slate-400 hover:text-white'}`}
+                  className={`flex-1 py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'erase' ? 'bg-[#C9FA01] text-[#080808]' : 'text-slate-400 hover:text-white'}`}
                 >
-                  <Eraser size={13} /> Touch Up
+                  Touch Up
                 </button>
               </div>
 
               {/* Tab panel contents */}
-              <div className="bg-slate-900/80 rounded-2xl border border-slate-800 p-5 space-y-4">
+              <div className="bg-[#0E0E10]/80 rounded-2xl border border-[#1C1C1E] p-5 space-y-4">
                 
                 {activeTab === 'chroma' && (
                   <div className="space-y-4">
@@ -1314,12 +1310,12 @@ export default function App() {
                       <label className="text-[11px] font-bold text-slate-500 block mb-1.5">Selected Color Key:</label>
                       <div className="flex items-center gap-3">
                         <div 
-                          className="w-10 h-10 rounded-xl border border-slate-800 shadow-inner" 
+                          className="w-10 h-10 rounded-xl border border-[#1C1C1E] shadow-inner" 
                           style={{ backgroundColor: `rgb(${keyColor.r}, ${keyColor.g}, ${keyColor.b})` }}
                         />
                         <button 
                           onClick={() => setIsPickingColor(!isPickingColor)}
-                          className={`flex-1 py-2 px-3 border rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${isPickingColor ? 'bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse' : 'bg-slate-950 border-slate-850 hover:bg-slate-900'}`}
+                          className={`flex-1 py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition-all ${isPickingColor ? 'bg-amber-500/10 border border-amber-500/30 text-amber-400 animate-pulse' : 'bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808]'}`}
                         >
                           <Pipette size={14} /> {isPickingColor ? 'Click to Pick Color' : 'Sample Backdrop'}
                         </button>
@@ -1330,7 +1326,7 @@ export default function App() {
                       <div>
                         <div className="flex justify-between text-xs text-slate-400 mb-1">
                           <span>Color Tolerance</span>
-                          <span className="font-fira text-cyan-400">{tolerance}</span>
+                          <span className="font-fira text-[#C9FA01]">{tolerance}</span>
                         </div>
                         <input 
                           type="range" 
@@ -1338,14 +1334,14 @@ export default function App() {
                           max="150" 
                           value={tolerance} 
                           onChange={(e) => setTolerance(parseInt(e.target.value))}
-                          className="w-full accent-cyan-400 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer"
+                          className="w-full accent-[#C9FA01] h-1 bg-[#080808] rounded-lg appearance-none cursor-pointer"
                         />
                       </div>
 
                       <div>
                         <div className="flex justify-between text-xs text-slate-400 mb-1">
                           <span>Edge Smooth Feathering</span>
-                          <span className="font-fira text-cyan-400">{feather}</span>
+                          <span className="font-fira text-[#C9FA01]">{feather}</span>
                         </div>
                         <input 
                           type="range" 
@@ -1353,14 +1349,14 @@ export default function App() {
                           max="50" 
                           value={feather} 
                           onChange={(e) => setFeather(parseInt(e.target.value))}
-                          className="w-full accent-cyan-400 h-1 bg-slate-950 rounded-lg appearance-none cursor-pointer"
+                          className="w-full accent-[#C9FA01] h-1 bg-[#080808] rounded-lg appearance-none cursor-pointer"
                         />
                       </div>
                     </div>
 
                     <button 
                       onClick={saveChromaState}
-                      className="w-full py-2 px-3 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
+                      className="w-full py-2 px-3 bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808] rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all"
                     >
                       <Check size={14} /> Lock Transparency Cut
                     </button>
@@ -1377,7 +1373,7 @@ export default function App() {
                     <button 
                       onClick={handleAiRemoveBackground}
                       disabled={isProcessing}
-                      className="w-full py-2.5 px-4 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 rounded-xl text-xs font-bold shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                      className="w-full py-2.5 px-4 bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808] rounded-xl text-xs font-bold shadow-lg shadow-[#C9FA01]/10 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
                     >
                       <RefreshCw className={`animate-spin ${isProcessing ? '' : 'hidden'}`} size={14} />
                       {isProcessing ? 'Isolating elements...' : 'Execute Gemini Separation'}
@@ -1392,11 +1388,11 @@ export default function App() {
                       <p className="text-xs text-slate-400 mt-1">Perfect fine details manually with pixel precise brushes.</p>
                     </div>
 
-                    <div className="p-4 bg-slate-950 rounded-xl border border-slate-850 space-y-3">
+                    <div className="p-4 bg-[#080808] rounded-xl border border-[#141416] space-y-3">
                       <div>
                         <div className="flex justify-between text-xs text-slate-400 mb-1">
                           <span>Brush Diameter</span>
-                          <span className="font-fira text-cyan-400">{brushSize}px</span>
+                          <span className="font-fira text-[#C9FA01]">{brushSize}px</span>
                         </div>
                         <input 
                           type="range" 
@@ -1404,7 +1400,7 @@ export default function App() {
                           max="100" 
                           value={brushSize} 
                           onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                          className="w-full accent-cyan-400 h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer"
+                          className="w-full accent-[#C9FA01] h-1 bg-[#0E0E10] rounded-lg appearance-none cursor-pointer"
                         />
                       </div>
                     </div>
@@ -1414,10 +1410,10 @@ export default function App() {
               </div>
 
               {/* Action buttons */}
-              <div className="bg-slate-900/80 rounded-2xl border border-slate-800 p-5 space-y-3">
+              <div className="bg-[#0E0E10]/80 rounded-2xl border border-[#1C1C1E] p-5 space-y-3">
                 <button 
                   onClick={downloadResult}
-                  className="w-full py-3 px-4 bg-cyan-500 hover:bg-cyan-400 text-slate-950 rounded-xl text-xs font-bold shadow-lg shadow-cyan-500/10 flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-3 px-4 bg-[#C9FA01] hover:bg-[#C9FA01] text-[#080808] rounded-xl text-xs font-bold shadow-lg shadow-[#C9FA01]/10 flex items-center justify-center gap-2 transition-all"
                 >
                   <Download size={14} /> Export Segment Output
                 </button>
@@ -1432,9 +1428,9 @@ export default function App() {
         <div className="flex-1 flex flex-col gap-4">
           
           {/* Work Status Indicators */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/50 px-4 py-3.5 rounded-2xl border border-slate-800 text-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0E0E10]/50 px-4 py-3.5 rounded-2xl border border-[#1C1C1E] text-xs">
             <div className="flex items-center gap-2 text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse"></span>
+              <span className="w-2 h-2 rounded-full bg-[#C9FA01] animate-pulse"></span>
               <span><strong>Mode:</strong> {studioMode === 'mockup' ? 'Perspective Quad Alignment Screen' : 'Transparency Segment Overlay'}</span>
             </div>
 
@@ -1448,16 +1444,16 @@ export default function App() {
           </div>
 
           {/* Interactive Workspace Frame */}
-          <div className="flex-1 bg-slate-950/40 border border-slate-800/80 rounded-3xl relative overflow-hidden flex items-center justify-center min-h-[450px] lg:min-h-[550px] p-6">
+          <div className="flex-1 bg-[#080808]/40 border border-[#1C1C1E]/80 rounded-3xl relative overflow-hidden flex items-center justify-center min-h-[450px] lg:min-h-[550px] p-6">
             
             {/* Grid background representing empty canvas */}
-            <div className="absolute inset-0 bg-[linear-gradient(45deg,#0f172a_25%,transparent_25%),linear-gradient(-45deg,#0f172a_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#0f172a_75%),linear-gradient(-45deg,transparent_75%,#0f172a_75%)] bg-[size:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0] opacity-40 pointer-events-none"></div>
+            <div className="absolute inset-0 -z-10 bg-[linear-gradient(45deg,#0E0E10_25%,transparent_25%),linear-gradient(-45deg,#0E0E10_25%,transparent_25%),linear-gradient(45deg,transparent_75%,#0E0E10_75%),linear-gradient(-45deg,transparent_75%,#0E0E10_75%)] bg-[size:24px_24px] bg-[position:0_0,0_12px,12px_-12px,-12px_0] opacity-40 pointer-events-none"></div>
 
             {/* MOCKUP WARP INTERFACE */}
             {studioMode === 'mockup' && mockupImage && (
               <div 
                 ref={containerRef}
-                className="relative select-none shadow-2xl rounded-2xl border border-slate-800/80 overflow-hidden animate-fadeIn"
+                className="relative select-none shadow-2xl rounded-2xl border border-[#1C1C1E]/80 overflow-hidden animate-fadeIn"
                 style={{ 
                   cursor: activePin !== null ? 'grabbing' : 'default',
                   width: resultCanvasRef.current ? `${resultCanvasRef.current.width}px` : 'auto',
@@ -1500,11 +1496,11 @@ export default function App() {
                       style={{ left: `${leftPercent}%`, top: `${topPercent}%` }}
                     >
                       {/* Crosshairs & Glowing Pins */}
-                      <span className="absolute w-2.5 h-2.5 rounded-full bg-cyan-400 border border-white shadow-lg shadow-cyan-400/50 group-hover:scale-125 transition-transform"></span>
-                      <span className="absolute w-6 h-6 rounded-full border border-cyan-400/60 animate-ping opacity-30 pointer-events-none"></span>
+                      <span className="absolute w-2.5 h-2.5 rounded-full bg-[#C9FA01] border border-white shadow-lg shadow-cyan-400/50 group-hover:scale-125 transition-transform"></span>
+                      <span className="absolute w-6 h-6 rounded-full border border-[#C9FA01]/60 animate-ping opacity-30 pointer-events-none"></span>
                       
                       {/* Hover tags with Fira Code coordinates */}
-                      <div className="absolute top-4 left-4 bg-slate-900/90 text-[9px] font-fira font-bold text-cyan-400 px-1 rounded border border-cyan-400/30 opacity-60 pointer-events-none">
+                      <div className="absolute top-4 left-4 bg-[#0E0E10]/90 text-[9px] font-fira font-bold text-[#C9FA01] px-1 rounded border border-[#C9FA01]/30 opacity-60 pointer-events-none">
                         {label} ({pin.x},{pin.y})
                       </div>
                     </div>
@@ -1514,7 +1510,7 @@ export default function App() {
                 {/* Magnification Loupe Window */}
                 {zoomLoupe && (
                   <div 
-                    className="absolute z-40 w-[124px] h-[124px] bg-slate-950 border-2 border-cyan-400 rounded-xl overflow-hidden shadow-2xl pointer-events-none"
+                    className="absolute z-40 w-[124px] h-[124px] bg-[#080808] border-2 border-[#C9FA01] rounded-xl overflow-hidden shadow-2xl pointer-events-none"
                     style={{
                       left: zoomLoupe.x > (resultCanvasRef.current?.width || 0) / 2 ? '20px' : 'auto',
                       right: zoomLoupe.x <= (resultCanvasRef.current?.width || 0) / 2 ? '20px' : 'auto',
@@ -1522,7 +1518,7 @@ export default function App() {
                     }}
                   >
                     <canvas id="loupe-canvas" width="120" height="120" className="w-full h-full" />
-                    <div className="absolute bottom-1 right-1 bg-slate-900/80 px-1 py-0.5 rounded text-[8px] font-fira text-cyan-400">
+                    <div className="absolute bottom-1 right-1 bg-[#0E0E10]/80 px-1 py-0.5 rounded text-[8px] font-fira text-[#C9FA01]">
                       Zoom (4x)
                     </div>
                   </div>
@@ -1534,7 +1530,7 @@ export default function App() {
             {/* Empty Setup Landing Area for Mockup screen */}
             {studioMode === 'mockup' && !mockupImage && (
               <div className="max-w-md text-center py-10 animate-fadeIn font-sans">
-                <div className="p-5 bg-slate-900 border border-slate-800 rounded-3xl inline-flex mb-4 text-cyan-400 animate-pulse">
+                <div className="p-5 bg-[#0E0E10] border border-[#1C1C1E] rounded-3xl inline-flex mb-4 text-[#C9FA01] animate-pulse">
                   <Laptop size={36} />
                 </div>
                 <h4 className="text-base font-bold text-white mb-2">Upload Device Photo</h4>
@@ -1542,7 +1538,7 @@ export default function App() {
                   Start by uploading a device image (laptop, smartphone, tablet or monitor). Next, you'll upload your screenshot to fit it automatically.
                 </p>
                 
-                <label className="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold rounded-xl cursor-pointer transition-all">
+                <label className="px-5 py-3 bg-[#C9FA01] hover:bg-[#C9FA01] text-[#080808] text-xs font-bold rounded-xl cursor-pointer transition-all">
                   <input type="file" onChange={handleDeviceUpload} accept="image/*" className="hidden" />
                   Select Device Photo
                 </label>
@@ -1553,7 +1549,7 @@ export default function App() {
             {studioMode === 'background' && originalImage && (
               <div 
                 ref={containerRef}
-                className="relative select-none max-w-full max-h-[75vh] shadow-2xl rounded-2xl overflow-hidden border border-slate-800"
+                className="relative select-none max-w-full max-h-[75vh] shadow-2xl rounded-2xl overflow-hidden border border-[#1C1C1E]"
                 style={{ 
                   cursor: isPickingColor ? 'crosshair' : activeTab === 'erase' ? 'crosshair' : 'default',
                   width: resultCanvasRef.current ? `${resultCanvasRef.current.width}px` : 'auto',
@@ -1597,23 +1593,23 @@ export default function App() {
 
                 {/* Interactive Slider Divider bar */}
                 <div 
-                  className="absolute top-0 bottom-0 z-20 w-1 bg-cyan-400 cursor-ew-resize flex items-center justify-center group"
+                  className="absolute top-0 bottom-0 z-20 w-1 bg-[#C9FA01] cursor-ew-resize flex items-center justify-center group"
                   style={{ left: `${sliderPosition}%` }}
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setIsDraggingSlider(true);
                   }}
                 >
-                  <div className="w-7 h-7 rounded-full bg-cyan-400 text-slate-950 border border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all select-none">
+                  <div className="w-7 h-7 rounded-full bg-[#C9FA01] text-[#080808] border border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all select-none">
                     <Sliders size={12} className="rotate-90" />
                   </div>
                 </div>
 
                 {/* Label guides */}
-                <div className="absolute top-3 left-3 bg-cyan-500/90 text-slate-950 font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
+                <div className="absolute top-3 left-3 bg-[#C9FA01]/90 text-[#080808] font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
                   Isolated Subject
                 </div>
-                <div className="absolute top-3 right-3 bg-slate-900/95 text-slate-300 font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
+                <div className="absolute top-3 right-3 bg-[#0E0E10]/95 text-slate-300 font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
                   Source Photo
                 </div>
 
@@ -1623,7 +1619,7 @@ export default function App() {
             {/* Empty Setup Landing Area */}
             {studioMode === 'background' && !originalImage && (
               <div className="max-w-md text-center py-10">
-                <div className="p-5 bg-slate-900 border border-slate-800 rounded-3xl inline-flex mb-4 text-cyan-400 animate-pulse">
+                <div className="p-5 bg-[#0E0E10] border border-[#1C1C1E] rounded-3xl inline-flex mb-4 text-[#C9FA01] animate-pulse">
                   <Upload size={36} />
                 </div>
                 <h4 className="text-base font-bold text-white mb-2">Upload Segment Base Image</h4>
@@ -1631,7 +1627,7 @@ export default function App() {
                   Start the background studio by choosing a custom image. Once uploaded, you can leverage chroma key matching or automatic Gemini separation overlays.
                 </p>
                 
-                <label className="px-5 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold rounded-xl cursor-pointer transition-all">
+                <label className="px-5 py-3 bg-[#C9FA01] hover:bg-[#C9FA01] text-[#080808] text-xs font-bold rounded-xl cursor-pointer transition-all">
                   <input type="file" onChange={handleImageUpload} accept="image/*" className="hidden" />
                   Select Source Image
                 </label>
@@ -1640,10 +1636,10 @@ export default function App() {
 
             {/* Processing loading state */}
             {isProcessing && (
-              <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 animate-fadeIn">
+              <div className="absolute inset-0 bg-[#080808]/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center gap-4 animate-fadeIn">
                 <div className="relative">
-                  <div className="w-14 h-14 rounded-full border-4 border-slate-800 border-t-cyan-500 animate-spin"></div>
-                  <Sparkles className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-cyan-400 animate-pulse" size={18} />
+                  <div className="w-14 h-14 rounded-full border-4 border-[#1C1C1E] border-t-cyan-500 animate-spin"></div>
+                  <Sparkles className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-[#C9FA01] animate-pulse" size={18} />
                 </div>
                 <div className="text-center">
                   <p className="text-xs font-bold text-white uppercase tracking-wider">AI Studio Math Processing</p>
@@ -1655,8 +1651,8 @@ export default function App() {
           </div>
 
           {/* Tips and usage banner */}
-          <div className="bg-slate-900/40 border border-slate-900 p-4 rounded-2xl flex items-start gap-3 text-xs leading-relaxed text-slate-400 font-sans">
-            <Info size={16} className="text-cyan-400 shrink-0 mt-0.5" />
+          <div className="bg-[#0E0E10]/40 border border-[#0E0E10] p-4 rounded-2xl flex items-start gap-3 text-xs leading-relaxed text-slate-400 font-sans">
+            <Info size={16} className="text-[#C9FA01] shrink-0 mt-0.5" />
             <div>
               {studioMode === 'mockup' ? (
                 <p><strong>Mockup Warper Tip:</strong> To get the most realistic app mocks, adjust the <strong>Opacity</strong> to 90% and use <strong>Screen Blend Mode</strong>. This lets glare and glass highlights shine through your design!</p>
@@ -1671,8 +1667,8 @@ export default function App() {
       </main>
 
       {/* Footer copyright */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-6 text-center text-xs text-slate-600 font-sans">
-        <p>© 2026 Gemini Studio. Professional mockup and transparency rendering workbench.</p>
+      <footer className="border-t border-[#0E0E10] bg-[#080808]/80 py-6 text-center text-xs text-slate-600 font-sans">
+        <p>© 2026 Fabian de la Fuente &nbsp;·&nbsp; <span className="font-fira">V2.2</span></p>
       </footer>
     </div>
   );
