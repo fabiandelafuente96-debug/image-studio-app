@@ -1075,6 +1075,9 @@ export default function App() {
     const x = (e.clientX - rect.left) * scaleX;
     const y = (e.clientY - rect.top) * scaleY;
 
+    // Safety boundary check
+    if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) return;
+
     const ctx = canvas.getContext('2d');
     const pixel = ctx.getImageData(Math.floor(x), Math.floor(y), 1, 1).data;
 
@@ -2086,6 +2089,7 @@ export default function App() {
               <div className="flex flex-col items-center max-w-full">
                 <div 
                   ref={containerRef}
+                  onClick={handleCanvasClick}
                   className="relative select-none max-w-full max-h-[75vh] shadow-2xl rounded-2xl overflow-hidden border border-[#1C1C1E]"
                   style={{ 
                     cursor: isPickingColor ? 'crosshair' : activeTab === 'erase' ? 'crosshair' : 'default',
@@ -2103,7 +2107,6 @@ export default function App() {
                   {/* Base Image Layer */}
                   <canvas 
                     ref={originalCanvasRef}
-                    onClick={handleCanvasClick}
                     className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                   />
 
