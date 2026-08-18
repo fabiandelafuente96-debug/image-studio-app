@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Upload, Download, Sparkles, Pipette, Eraser, RefreshCw, 
   Undo, Redo, Image as ImageIcon, Sliders, Check, AlertCircle, 
-  HelpCircle, X, Laptop, Smartphone, Info, Paintbrush, Layers, RotateCcw
+  HelpCircle, X, Laptop, Smartphone, Info, Paintbrush, Layers, RotateCcw,
+  Play, Pause, Repeat
 } from 'lucide-react';
 
 const Toast = ({ message, type, onClose }) => {
@@ -129,6 +130,15 @@ export default function App() {
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiMaskFeather, setAiMaskFeather] = useState(2); // default 2px blur
 
+  // Video Background Remover States
+  const [isVideo, setIsVideo] = useState(false);
+  const [originalVideoUrl, setOriginalVideoUrl] = useState("");
+  const [videoPlaying, setVideoPlaying] = useState(false);
+  const [videoDuration, setVideoDuration] = useState(0);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+  const [videoLoop, setVideoLoop] = useState(true);
+  const videoRef = useRef(null);
+
   // Before/After Slider position (0 - 100)
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDraggingSlider, setIsDraggingSlider] = useState(false);
@@ -193,19 +203,32 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      showToast("Please upload an image.", "error");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      setOriginalImage(event.target.result);
+    if (file.type.startsWith('video/')) {
+      setIsVideo(true);
+      const url = URL.createObjectURL(file);
+      setOriginalVideoUrl(url);
+      setOriginalImage(null); // Clear image
       setColorSelected(false);
       setHistory([]);
       setHistoryStep(-1);
-    };
-    reader.readAsDataURL(file);
+      showToast("Video loaded! Choose a color key to isolate the background.", "success");
+    } else if (file.type.startsWith('image/')) {
+      setIsVideo(false);
+      if (originalVideoUrl) {
+        URL.revokeObjectURL(originalVideoUrl);
+        setOriginalVideoUrl("");
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setOriginalImage(event.target.result);
+        setColorSelected(false);
+        setHistory([]);
+        setHistoryStep(-1);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      showToast("Please upload an image or video file.", "error");
+    }
   };
 
   const handleDeviceUpload = (e) => {
@@ -793,18 +816,7 @@ export default function App() {
     }
   };
 
-  useEffect(() => {
-    if (!originalImage || activeTab !== 'chroma' || !colorSelected || studioMode !== 'background') return;
-
-    const origCanvas = originalCanvasRef.current;
-    const resultCanvas = resultCanvasRef.current;
-    if (!origCanvas || !resultCanvas) return;
-
-    const ctxOrig = origCanvas.getContext('2d');
-    const ctxResult = resultCanvas.getContext('2d');
-    const w = origCanvas.width;
-    const h = origCanvas.height;
-
+  const processChromaKey = useCallback((ctxOrig, ctxResult, w, h) => {
     const imgData = ctxOrig.getImageData(0, 0, w, h);
     const data = imgData.data;
     const outputImgData = ctxResult.createImageData(w, h);
@@ -828,7 +840,221 @@ export default function App() {
     }
 
     ctxResult.putImageData(outputImgData, 0, 0);
-  }, [tolerance, feather, keyColor, colorSelected, originalImage, activeTab, studioMode]);
+  }, [tolerance, feather, keyColor]);
+
+  useEffect(() => {
+    if (isVideo) return; // Video rendering is handled by the video loop
+    if (!originalImage || activeTab !== 'chroma' || !colorSelected || studioMode !== 'background') return;
+
+    const origCanvas = originalCanvasRef.current;
+    const resultCanvas = resultCanvasRef.current;
+    if (!origCanvas || !resultCanvas) return;
+
+    const ctxOrig = origCanvas.getContext('2d');
+    const ctxResult = resultCanvas.getContext('2d');
+    processChromaKey(ctxOrig, ctxResult, origCanvas.width, origCanvas.height);
+  }, [tolerance, feather, keyColor, colorSelected, originalImage, activeTab, studioMode, isVideo, processChromaKey]);
+
+  const formatTime = (time) => {
+    if (isNaN(time)) return "0:00";
+    const minutes = Math.floor(time / 60);
+    const seconds = Math.floor(time % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
+
+  const renderVideoFrame = useCallback(() => {
+    const video = videoRef.current;
+    const origCanvas = originalCanvasRef.current;
+    const resultCanvas = resultCanvasRef.current;
+    if (!video || !origCanvas || !resultCanvas) return;
+    if (video.paused && !video.seeking) return;
+
+    const ctxOrig = origCanvas.getContext('2d');
+    const ctxResult = resultCanvas.getContext('2d');
+    const w = origCanvas.width;
+    const h = origCanvas.height;
+
+    // Draw video frame to orig canvas
+    ctxOrig.drawImage(video, 0, 0, w, h);
+
+    if (activeTab === 'chroma' && colorSelected) {
+      processChromaKey(ctxOrig, ctxResult, w, h);
+    } else {
+      ctxResult.drawImage(video, 0, 0, w, h);
+    }
+
+    setVideoCurrentTime(video.currentTime);
+
+    if (!video.paused && !video.ended) {
+      requestAnimationFrame(renderVideoFrame);
+    }
+  }, [activeTab, colorSelected, processChromaKey]);
+
+  const handleVideoScrub = (time) => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.currentTime = time;
+    setVideoCurrentTime(time);
+    setTimeout(renderVideoFrame, 10);
+  };
+
+  // Re-render frame when settings change while paused
+  useEffect(() => {
+    if (isVideo && videoRef.current && (videoRef.current.paused || videoRef.current.seeking)) {
+      renderVideoFrame();
+    }
+  }, [isVideo, tolerance, feather, keyColor, activeTab, renderVideoFrame]);
+
+  // Video Loaded Metadata Handler
+  const handleVideoLoadedMetadata = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    setVideoDuration(video.duration);
+    
+    const origCanvas = originalCanvasRef.current;
+    const resultCanvas = resultCanvasRef.current;
+    const workCanvas = workCanvasRef.current;
+
+    if (!origCanvas || !resultCanvas || !workCanvas) return;
+
+    const maxDim = 1000;
+    let width = video.videoWidth;
+    let height = video.videoHeight;
+    if (width > maxDim || height > maxDim) {
+      if (width > height) {
+        height = Math.round((height * maxDim) / width);
+        width = maxDim;
+      } else {
+        width = Math.round((width * maxDim) / height);
+        height = maxDim;
+      }
+    }
+
+    origCanvas.width = width;
+    origCanvas.height = height;
+    resultCanvas.width = width;
+    resultCanvas.height = height;
+    workCanvas.width = width;
+    workCanvas.height = height;
+
+    const ctxOrig = origCanvas.getContext('2d');
+    ctxOrig.drawImage(video, 0, 0, width, height);
+
+    const ctxResult = resultCanvas.getContext('2d');
+    ctxResult.drawImage(video, 0, 0, width, height);
+
+    try {
+      const edgePixel = ctxOrig.getImageData(5, 5, 1, 1).data;
+      setKeyColor({ r: edgePixel[0], g: edgePixel[1], b: edgePixel[2] });
+      setColorSelected(true);
+    } catch (e) {
+      setKeyColor({ r: 255, g: 255, b: 255 });
+    }
+
+    const initialData = ctxResult.getImageData(0, 0, width, height);
+    setHistory([initialData]);
+    setHistoryStep(0);
+
+    setTimeout(renderVideoFrame, 50);
+  };
+
+  // Redraw video dimensions if switching tabs
+  useEffect(() => {
+    if (studioMode === 'background' && isVideo && videoRef.current) {
+      const video = videoRef.current;
+      const origCanvas = originalCanvasRef.current;
+      const resultCanvas = resultCanvasRef.current;
+      const workCanvas = workCanvasRef.current;
+
+      if (origCanvas && resultCanvas && workCanvas && video.videoWidth > 0) {
+        const maxDim = 1000;
+        let width = video.videoWidth;
+        let height = video.videoHeight;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        origCanvas.width = width;
+        origCanvas.height = height;
+        resultCanvas.width = width;
+        resultCanvas.height = height;
+        workCanvas.width = width;
+        workCanvas.height = height;
+
+        setTimeout(renderVideoFrame, 50);
+      }
+    }
+  }, [studioMode, isVideo, renderVideoFrame]);
+
+  // Export Transparent Video handler
+  const exportTransparentVideo = () => {
+    const video = videoRef.current;
+    const resultCanvas = resultCanvasRef.current;
+    if (!video || !resultCanvas) return;
+
+    setIsProcessing(true);
+    showToast("Exporting transparent video frames... Please do not close this tab.", "info");
+
+    video.pause();
+    video.currentTime = 0;
+    
+    // Capture canvas stream at 30 FPS
+    const stream = resultCanvas.captureStream(30);
+    
+    let recorder;
+    const options = { mimeType: 'video/webm;codecs=vp9' };
+    try {
+      recorder = new MediaRecorder(stream, options);
+    } catch (e) {
+      try {
+        recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+      } catch (err) {
+        showToast("WebM MediaRecorder is not supported in your browser.", "error");
+        setIsProcessing(false);
+        return;
+      }
+    }
+
+    const chunks = [];
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'keyed_video.webm';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setIsProcessing(false);
+      showToast("Transparent WebM video exported successfully!", "success");
+    };
+
+    // Wait for the video to seek to frame 0
+    video.onseeked = function onSeekedOnce() {
+      video.onseeked = null;
+      recorder.start();
+      video.play();
+      
+      const handleVideoEnded = () => {
+        video.removeEventListener('ended', handleVideoEnded);
+        recorder.stop();
+        video.pause();
+      };
+      video.addEventListener('ended', handleVideoEnded);
+    };
+  };
 
   const saveChromaState = () => {
     if (!resultCanvasRef.current) return;
@@ -968,19 +1194,23 @@ export default function App() {
 
     } else {
       // Background Mode
-      const canvas = resultCanvasRef.current;
-      if (!canvas) return;
+      if (isVideo) {
+        exportTransparentVideo();
+      } else {
+        const canvas = resultCanvasRef.current;
+        if (!canvas) return;
 
-      try {
-        const link = document.createElement('a');
-        link.download = 'isolated_subject.png';
-        link.href = canvas.toDataURL('image/png');
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        showToast("Downloaded segment layout successfully!", "success");
-      } catch (e) {
-        showToast("Download failed due to canvas protection.", "error");
+        try {
+          const link = document.createElement('a');
+          link.download = 'isolated_subject.png';
+          link.href = canvas.toDataURL('image/png');
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          showToast("Downloaded segment layout successfully!", "success");
+        } catch (e) {
+          showToast("Download failed due to canvas protection.", "error");
+        }
       }
     }
   };
@@ -1165,6 +1395,16 @@ export default function App() {
     setHistory([]);
     setHistoryStep(-1);
     hasAutoPinned.current = false;
+
+    // Reset video states
+    setIsVideo(false);
+    if (originalVideoUrl) {
+      URL.revokeObjectURL(originalVideoUrl);
+    }
+    setOriginalVideoUrl("");
+    setVideoPlaying(false);
+    setVideoDuration(0);
+    setVideoCurrentTime(0);
   };
 
   return (
@@ -1505,107 +1745,124 @@ export default function App() {
                   </div>
                 )}
                  {activeTab === 'ai' && (
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-sm font-bold text-white">Gemini AI Engine</h3>
-                      <p className="text-xs text-slate-400 mt-1">Automatic subject isolation via advanced visual recognition models.</p>
-                    </div>
+                   <div className="space-y-4">
+                     <div>
+                       <h3 className="text-sm font-bold text-white">Gemini AI Engine</h3>
+                       <p className="text-xs text-slate-400 mt-1">Automatic subject isolation via advanced visual recognition models.</p>
+                     </div>
 
-                    {/* AI Isolation Mode Selection */}
-                    <div className="space-y-2">
-                      <label className="text-[11px] font-bold text-slate-500 block">ISOLATION METHOD:</label>
-                      <div className="grid grid-cols-1 gap-2">
-                        <button
-                          onClick={() => setAiMode('mask')}
-                          className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
-                            aiMode === 'mask'
-                              ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
-                              : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="font-bold text-white flex items-center justify-between">
-                            <span>Grayscale Mask</span>
-                            {aiMode === 'mask' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">Recommended. Preserves 100% of original high-resolution details.</p>
-                        </button>
-                        <button
-                          onClick={() => setAiMode('chromakey')}
-                          className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
-                            aiMode === 'chromakey'
-                              ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
-                              : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="font-bold text-white flex items-center justify-between">
-                            <span>Chroma Green Screen</span>
-                            {aiMode === 'chromakey' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">Positions the subject on pure green, then auto-keys it out.</p>
-                        </button>
-                        <button
-                          onClick={() => setAiMode('direct')}
-                          className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
-                            aiMode === 'direct'
-                              ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
-                              : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
-                          }`}
-                        >
-                          <div className="font-bold text-white flex items-center justify-between">
-                            <span>Direct AI Cutout</span>
-                            {aiMode === 'direct' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
-                          </div>
-                          <p className="text-[10px] text-slate-500 font-normal mt-0.5">Legacy. Generates cutout directly. Best for simple subjects.</p>
-                        </button>
-                      </div>
-                    </div>
+                     {isVideo ? (
+                       <div className="p-4 bg-[#0E0E10] border border-[#1C1C1E] text-slate-300 rounded-2xl text-xs leading-relaxed space-y-2">
+                         <div className="font-bold text-white flex items-center gap-2">
+                           <Info size={15} className="text-[#C9FA01]" />
+                           <span>Video Mode Active</span>
+                         </div>
+                         <p className="text-slate-400">
+                           The Gemini AI Engine is designed for high-resolution static images.
+                         </p>
+                         <p className="text-slate-400">
+                           For video files, please use the <strong>Chroma Key</strong> tab to sample backdrop colors and remove backgrounds in real-time.
+                         </p>
+                       </div>
+                     ) : (
+                       <>
+                         {/* AI Isolation Mode Selection */}
+                         <div className="space-y-2">
+                           <label className="text-[11px] font-bold text-slate-500 block">ISOLATION METHOD:</label>
+                           <div className="grid grid-cols-1 gap-2">
+                             <button
+                               onClick={() => setAiMode('mask')}
+                               className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                                 aiMode === 'mask'
+                                   ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
+                                   : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
+                               }`}
+                             >
+                               <div className="font-bold text-white flex items-center justify-between">
+                                 <span>Grayscale Mask</span>
+                                 {aiMode === 'mask' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
+                               </div>
+                               <p className="text-[10px] text-slate-500 font-normal mt-0.5">Recommended. Preserves 100% of original high-resolution details.</p>
+                             </button>
+                             <button
+                               onClick={() => setAiMode('chromakey')}
+                               className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                                 aiMode === 'chromakey'
+                                   ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
+                                   : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
+                               }`}
+                             >
+                               <div className="font-bold text-white flex items-center justify-between">
+                                 <span>Chroma Green Screen</span>
+                                 {aiMode === 'chromakey' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
+                               </div>
+                               <p className="text-[10px] text-slate-500 font-normal mt-0.5">Positions the subject on pure green, then auto-keys it out.</p>
+                             </button>
+                             <button
+                               onClick={() => setAiMode('direct')}
+                               className={`py-2.5 px-3 rounded-xl text-left text-xs font-semibold border transition-all ${
+                                 aiMode === 'direct'
+                                   ? 'bg-[#C9FA01]/15 border-[#C9FA01] text-white'
+                                   : 'bg-[#080808] border-[#1C1C1E] text-slate-400 hover:border-slate-700'
+                               }`}
+                             >
+                               <div className="font-bold text-white flex items-center justify-between">
+                                 <span>Direct AI Cutout</span>
+                                 {aiMode === 'direct' && <span className="w-1.5 h-1.5 bg-[#C9FA01] rounded-full" />}
+                               </div>
+                               <p className="text-[10px] text-slate-500 font-normal mt-0.5">Legacy. Generates cutout directly. Best for simple subjects.</p>
+                             </button>
+                           </div>
+                         </div>
 
-                    {/* Subject Focus Prompt Input */}
-                    <div className="space-y-1.5">
-                      <label className="text-[11px] font-bold text-slate-500 block">SUBJECT FOCUS (OPTIONAL):</label>
-                      <input 
-                        type="text" 
-                        placeholder="e.g. the dog, the red mug, the speaker"
-                        value={aiPrompt}
-                        onChange={(e) => setAiPrompt(e.target.value)}
-                        className="w-full bg-[#080808] border border-[#1C1C1E] focus:border-[#C9FA01] rounded-xl px-3 py-2 text-xs text-slate-200 outline-none transition-all placeholder:text-slate-600"
-                      />
-                      <p className="text-[9px] text-slate-500">Helps AI target specific items in complex/cluttered scenes.</p>
-                    </div>
+                         {/* Subject Focus Prompt Input */}
+                         <div className="space-y-1.5">
+                           <label className="text-[11px] font-bold text-slate-500 block">SUBJECT FOCUS (OPTIONAL):</label>
+                           <input 
+                             type="text" 
+                             placeholder="e.g. the dog, the red mug, the speaker"
+                             value={aiPrompt}
+                             onChange={(e) => setAiPrompt(e.target.value)}
+                             className="w-full bg-[#080808] border border-[#1C1C1E] focus:border-[#C9FA01] rounded-xl px-3 py-2 text-xs text-slate-200 outline-none transition-all placeholder:text-slate-600"
+                           />
+                           <p className="text-[9px] text-slate-500">Helps AI target specific items in complex/cluttered scenes.</p>
+                         </div>
 
-                    {/* Mask Feather Softness Slider (Only for Mask Mode) */}
-                    {aiMode === 'mask' && (
-                      <div className="space-y-1.5">
-                        <div className="flex justify-between text-xs text-slate-400">
-                          <span>Edge Softness / Feather</span>
-                          <span className="font-fira text-[#C9FA01]">{aiMaskFeather}px</span>
-                        </div>
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="20" 
-                          value={aiMaskFeather} 
-                          onChange={(e) => setAiMaskFeather(parseInt(e.target.value))}
-                          className="w-full accent-[#C9FA01] h-1 bg-[#080808] rounded-lg appearance-none cursor-pointer"
-                        />
-                        <p className="text-[9px] text-slate-500">Smoothes out edges to blend cutouts naturally.</p>
-                      </div>
-                    )}
+                         {/* Mask Feather Softness Slider (Only for Mask Mode) */}
+                         {aiMode === 'mask' && (
+                           <div className="space-y-1.5">
+                             <div className="flex justify-between text-xs text-slate-400">
+                               <span>Edge Softness / Feather</span>
+                               <span className="font-fira text-[#C9FA01]">{aiMaskFeather}px</span>
+                             </div>
+                             <input 
+                               type="range" 
+                               min="0" 
+                               max="20" 
+                               value={aiMaskFeather} 
+                               onChange={(e) => setAiMaskFeather(parseInt(e.target.value))}
+                               className="w-full accent-[#C9FA01] h-1 bg-[#080808] rounded-lg appearance-none cursor-pointer"
+                             />
+                             <p className="text-[9px] text-slate-500">Smoothes out edges to blend cutouts naturally.</p>
+                           </div>
+                         )}
 
-                    {!apiKey && (
-                      <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-[11px] leading-relaxed">
-                        ⚠️ <strong>Gemini API Key missing.</strong> Please expand the <em>Gemini API Configuration</em> below to enter your API key to run this feature.
-                      </div>
-                    )}
+                         {!apiKey && (
+                           <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-xl text-[11px] leading-relaxed">
+                             ⚠️ <strong>Gemini API Key missing.</strong> Please expand the <em>Gemini API Configuration</em> below to enter your API key to run this feature.
+                           </div>
+                         )}
 
-                    <button 
-                      onClick={handleAiRemoveBackground}
-                      disabled={isProcessing || !apiKey}
-                      className="w-full py-2.5 px-4 bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808] rounded-xl text-xs font-bold shadow-lg shadow-[#C9FA01]/10 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
-                    >
-                      <RefreshCw className={`animate-spin ${isProcessing ? '' : 'hidden'}`} size={14} />
-                      {isProcessing ? 'Isolating elements...' : 'Execute Gemini Separation'}
-                    </button>
+                         <button 
+                           onClick={handleAiRemoveBackground}
+                           disabled={isProcessing || !apiKey}
+                           className="w-full py-2.5 px-4 bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808] rounded-xl text-xs font-bold shadow-lg shadow-[#C9FA01]/10 flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+                         >
+                           <RefreshCw className={`animate-spin ${isProcessing ? '' : 'hidden'}`} size={14} />
+                           {isProcessing ? 'Isolating elements...' : 'Execute Gemini Separation'}
+                         </button>
+                       </>
+                     )}
 
                     {/* Collapsible API Key Management panel */}
                     <div className="border-t border-[#1C1C1E]/50 pt-3">
@@ -1825,90 +2082,157 @@ export default function App() {
             )}
 
             {/* BACKGROUND STUDIO INTERFACE */}
-            {studioMode === 'background' && originalImage && (
-              <div 
-                ref={containerRef}
-                className="relative select-none max-w-full max-h-[75vh] shadow-2xl rounded-2xl overflow-hidden border border-[#1C1C1E]"
-                style={{ 
-                  cursor: isPickingColor ? 'crosshair' : activeTab === 'erase' ? 'crosshair' : 'default',
-                  width: resultCanvasRef.current ? `${resultCanvasRef.current.width}px` : 'auto',
-                  height: resultCanvasRef.current ? `${resultCanvasRef.current.height}px` : 'auto'
-                }}
-                onMouseMove={(e) => {
-                  if (isDraggingSlider) handleSliderMove(e.clientX);
-                }}
-                onMouseUp={() => setIsDraggingSlider(false)}
-                onMouseLeave={(e) => {
-                  setIsDraggingSlider(false);
-                }}
-              >
-                {/* Base Image Layer */}
-                <canvas 
-                  ref={originalCanvasRef}
-                  onClick={handleCanvasClick}
-                  className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                />
-
-                {/* Filter/Isolation result layer */}
+            {studioMode === 'background' && (originalImage || isVideo) && (
+              <div className="flex flex-col items-center max-w-full">
                 <div 
-                  className="absolute inset-0 w-full h-full overflow-hidden"
-                  style={{ width: `${sliderPosition}%` }}
-                >
-                  <canvas 
-                    ref={resultCanvasRef}
-                    onMouseDown={handleMouseDown}
-                    onMouseMove={handleMouseMove}
-                    onMouseUp={handleMouseUp}
-                    className="absolute top-0 left-0 h-full max-w-none"
-                    style={{ 
-                      width: containerRef.current ? `${containerRef.current.clientWidth}px` : '100%',
-                      height: containerRef.current ? `${containerRef.current.clientHeight}px` : '100%'
-                    }}
-                  />
-                </div>
-
-                {/* Invisible calculation backing */}
-                <canvas ref={workCanvasRef} className="hidden" />
-
-                {/* Interactive Slider Divider bar */}
-                <div 
-                  className="absolute top-0 bottom-0 z-20 w-1 bg-[#C9FA01] cursor-ew-resize flex items-center justify-center group"
-                  style={{ left: `${sliderPosition}%` }}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setIsDraggingSlider(true);
+                  ref={containerRef}
+                  className="relative select-none max-w-full max-h-[75vh] shadow-2xl rounded-2xl overflow-hidden border border-[#1C1C1E]"
+                  style={{ 
+                    cursor: isPickingColor ? 'crosshair' : activeTab === 'erase' ? 'crosshair' : 'default',
+                    width: resultCanvasRef.current ? `${resultCanvasRef.current.width}px` : 'auto',
+                    height: resultCanvasRef.current ? `${resultCanvasRef.current.height}px` : 'auto'
+                  }}
+                  onMouseMove={(e) => {
+                    if (isDraggingSlider) handleSliderMove(e.clientX);
+                  }}
+                  onMouseUp={() => setIsDraggingSlider(false)}
+                  onMouseLeave={(e) => {
+                    setIsDraggingSlider(false);
                   }}
                 >
-                  <div className="w-7 h-7 rounded-full bg-[#C9FA01] text-[#080808] border border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all select-none">
-                    <Sliders size={12} className="rotate-90" />
+                  {/* Base Image Layer */}
+                  <canvas 
+                    ref={originalCanvasRef}
+                    onClick={handleCanvasClick}
+                    className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                  />
+
+                  {/* Filter/Isolation result layer */}
+                  <div 
+                    className="absolute inset-0 w-full h-full overflow-hidden"
+                    style={{ width: `${sliderPosition}%` }}
+                  >
+                    <canvas 
+                      ref={resultCanvasRef}
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUp}
+                      className="absolute top-0 left-0 h-full max-w-none"
+                      style={{ 
+                        width: containerRef.current ? `${containerRef.current.clientWidth}px` : '100%',
+                        height: containerRef.current ? `${containerRef.current.clientHeight}px` : '100%'
+                      }}
+                    />
                   </div>
+
+                  {/* Invisible calculation backing */}
+                  <canvas ref={workCanvasRef} className="hidden" />
+
+                  {/* Interactive Slider Divider bar */}
+                  <div 
+                    className="absolute top-0 bottom-0 z-20 w-1 bg-[#C9FA01] cursor-ew-resize flex items-center justify-center group"
+                    style={{ left: `${sliderPosition}%` }}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setIsDraggingSlider(true);
+                    }}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-[#C9FA01] text-[#080808] border border-white flex items-center justify-center shadow-lg group-hover:scale-110 transition-all select-none">
+                      <Sliders size={12} className="rotate-90" />
+                    </div>
+                  </div>
+
+                  {/* Label guides */}
+                  <div className="absolute top-3 left-3 bg-[#C9FA01]/90 text-[#080808] font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
+                    Isolated Subject
+                  </div>
+                  <div className="absolute top-3 right-3 bg-[#0E0E10]/95 text-slate-300 font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
+                    Source Photo
+                  </div>
+
                 </div>
 
-                {/* Label guides */}
-                <div className="absolute top-3 left-3 bg-[#C9FA01]/90 text-[#080808] font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
-                  Isolated Subject
-                </div>
-                <div className="absolute top-3 right-3 bg-[#0E0E10]/95 text-slate-300 font-extrabold text-[9px] tracking-widest uppercase py-1 px-2.5 rounded-md z-10 select-none shadow">
-                  Source Photo
-                </div>
+                {/* Hidden video element */}
+                {isVideo && originalVideoUrl && (
+                  <video
+                    ref={videoRef}
+                    src={originalVideoUrl}
+                    loop={videoLoop}
+                    muted
+                    playsInline
+                    className="hidden"
+                    onLoadedMetadata={handleVideoLoadedMetadata}
+                    onTimeUpdate={() => setVideoCurrentTime(videoRef.current?.currentTime || 0)}
+                    onPlay={() => {
+                      setVideoPlaying(true);
+                      requestAnimationFrame(renderVideoFrame);
+                    }}
+                    onPause={() => setVideoPlaying(false)}
+                  />
+                )}
 
+                {/* Video controls */}
+                {isVideo && videoRef.current && (
+                  <div className="w-full max-w-full bg-[#0E0E10]/95 border border-[#1C1C1E] mt-3 p-3.5 rounded-2xl flex items-center gap-4 text-xs select-none">
+                    <button
+                      onClick={() => {
+                        const v = videoRef.current;
+                        if (!v) return;
+                        if (v.paused) {
+                          v.play();
+                        } else {
+                          v.pause();
+                        }
+                      }}
+                      className="w-8 h-8 bg-[#C9FA01] hover:bg-[#d4ff1a] text-[#080808] rounded-xl transition-all flex items-center justify-center shrink-0"
+                    >
+                      {videoPlaying ? <Pause size={14} /> : <Play size={14} />}
+                    </button>
+                    
+                    <div className="flex-1 flex items-center gap-3">
+                      <span className="font-fira text-slate-400 text-[10px] w-12 text-right">
+                        {formatTime(videoCurrentTime)}
+                      </span>
+                      <input
+                        type="range"
+                        min="0"
+                        max={videoDuration || 0}
+                        step="0.01"
+                        value={videoCurrentTime}
+                        onChange={(e) => handleVideoScrub(parseFloat(e.target.value))}
+                        className="flex-1 accent-[#C9FA01] h-1 bg-[#080808] rounded-lg appearance-none cursor-pointer"
+                      />
+                      <span className="font-fira text-slate-400 text-[10px] w-12">
+                        {formatTime(videoDuration)}
+                      </span>
+                    </div>
+
+                    <button
+                      onClick={() => setVideoLoop(!videoLoop)}
+                      className={`w-8 h-8 rounded-xl border transition-all flex items-center justify-center shrink-0 ${videoLoop ? 'border-[#C9FA01] bg-[#C9FA01]/10 text-white' : 'border-[#1C1C1E] text-slate-400 hover:text-white'}`}
+                      title="Toggle Loop"
+                    >
+                      <Repeat size={14} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
             {/* Empty Setup Landing Area */}
-            {studioMode === 'background' && !originalImage && (
+            {studioMode === 'background' && !originalImage && !originalVideoUrl && (
               <div className="max-w-md text-center py-10">
                 <div className="p-5 bg-[#0E0E10] border border-[#1C1C1E] rounded-3xl inline-flex mb-4 text-[#C9FA01] animate-pulse">
                   <Upload size={36} />
                 </div>
-                <h4 className="text-base font-bold text-white mb-2">Upload Segment Base Image</h4>
+                <h4 className="text-base font-bold text-white mb-2">Upload Source Image or Video</h4>
                 <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-                  Start the background studio by choosing a custom image. Once uploaded, you can leverage chroma key matching or automatic Gemini separation overlays.
+                  Start the background studio by choosing a custom image or video. Once uploaded, you can leverage real-time chroma key matching or automatic Gemini separation overlays.
                 </p>
                 
                 <label className="px-5 py-3 bg-[#C9FA01] hover:bg-[#C9FA01] text-[#080808] text-xs font-bold rounded-xl cursor-pointer transition-all">
-                  <input type="file" onChange={handleImageUpload} accept="image/*" className="hidden" />
-                  Select Source Image
+                  <input type="file" onChange={handleImageUpload} accept="image/*,video/*" className="hidden" />
+                  Select Source Image or Video
                 </label>
               </div>
             )}
